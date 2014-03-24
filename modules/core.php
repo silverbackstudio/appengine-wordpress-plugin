@@ -49,7 +49,12 @@ class Core {
 	/**
 	 * When was the admin.css file last updated?
 	 */
-	const CSS_VERSION = '201305100635';
+  const CSS_VERSION = '201305100635';
+
+  /**
+   * Force SSL in admin
+   */
+	const FORCE_SSL_ADMIN = false;
 
 	/**
 	 * Set required settings and register our actions
@@ -60,9 +65,14 @@ class Core {
 
 		add_filter( 'got_rewrite', '__return_true', self::LOW_PRIORITY );
 		if( is_production() ) {
-			add_filter( 'secure_auth_redirect', '__return_true' );
-			force_ssl_admin( true );
-			
+
+      // TODO: any way to obtain the value of the force_secure flag in app.yaml?
+      // see: http://wordpress.org/support/topic/forced-secure-admin-in-production
+      if (self::FORCE_SSL_ADMIN) {
+        add_filter( 'secure_auth_redirect', '__return_true' );
+  			force_ssl_admin( true );
+      }
+
 			defined( 'DISALLOW_FILE_EDIT' ) or define( 'DISALLOW_FILE_EDIT', true );
 			defined( 'DISALLOW_FILE_MODS' ) or define( 'DISALLOW_FILE_MODS', true );
 		}
