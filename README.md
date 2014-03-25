@@ -1,16 +1,21 @@
-=== Google App Engine for WordPress ===
-Contributors: google, sennza
-Tags: google, app engine, gae, mail, email, uploads, uploading, cloud storage
-Requires at least: 3.5
-Tested up to: 3.8.1
-Stable tag: 1.4
-License: GPLv2 or later
-License URI: http://www.gnu.org/licenses/gpl-2.0.html
+Google App Engine for WordPress
+-------------------------------
+
+* Contributors: google, sennza
+* Tags: google, app engine, gae, mail, email, uploads, uploading, cloud storage
+* Requires at least: 3.5
+* Tested up to: 3.8.1
+* Stable tag: 1.4
+* License: GPLv2 or later
+* License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
 Optimize your WordPress installation for the Google App Engine platform.
 
 
-== Description ==
+-----
+
+
+### Description
 
 Google App Engine for WordPress enables seamless operation of your
 WordPress-powered site on the App Engine PHP runtime.
@@ -19,9 +24,14 @@ This plugin adds overrides to core functionality in WordPress to use App Engine
 infrastructure, such as the Mail functionality, and uploading media to Google
 Cloud Storage
 
-= Note: This plugin is designed to be used with Google App Engine only and will not work with any other hosting. = 
+**Note**: This plugin is designed to be used with Google App Engine only and
+will not work with any other hosting.
 
-== Installation ==
+
+-----
+
+
+### Installation
 
 This plugin should be downloaded and placed in your `/wp-content/plugins/`
 directory. The App Engine infrastructure does not allow you to install plugins
@@ -32,24 +42,33 @@ and themes without deploying them via `appcfg.py`.
 3. Activate the plugin through the 'Plugins' menu in WordPress
 
 
-== Frequently Asked Questions ==
+-----
 
-= Why can't I use the plugin installer/upgrader? =
+
+### Frequently Asked Questions
+
+
+#### Why can't I use the plugin installer/upgrader?
 
 For security reasons, all code on App Engine must be deployed via `appcfg.py`.
 This includes WordPress plugins and themes, as well as editing files via the
 administration panel.
 
-= Is this plugin required to run WordPress on App Engine? =
+
+#### Is this plugin required to run WordPress on App Engine?
 
 We recommend running App Engine for WordPress to ensure that all WordPress
 functionality works correctly. Without this plugin, you will not be able to send
 email or upload files, and some UI may be broken.
 
 
-== Caching ==
+-----
 
-We recommend using the [Batcache][] and [Memcache][] drop-ins to cache your
+
+## Caching
+
+We recommend using the [Batcache](http://wordpress.org/plugins/batcache/) and
+[Memcache](http://wordpress.org/plugins/memcache/) drop-ins to cache your
 WordPress site. Batcache integrates with Memcache to cache your site on the App
 Engine memcache server and will ensure that CloudSQL is used as little as
 possible, reducing your costs.
@@ -57,10 +76,13 @@ possible, reducing your costs.
 If you host a rarely updated site, we suggest adding the following configuration
 to your `wp-config.php`:
 
+```
 	$batcache = [
 		'seconds' => 0,
 		'max_age' => 60 * 30,  // 30 minutes.
 	];
+```
+
 
 This will cache pages on your site for a year and ensure that they do not expire
 in memcache. With this setup and a fully primed cache, all anonymous users will
@@ -68,67 +90,99 @@ be served via Memcache with no hits to CloudSQL.
 
 Note that using WordPress' built-in comments will enable commenters to bypass
 the cache, so if you want to use comments on a fully-cached site, we recommend
-[Intense Debate][] or [Disqus][] (with the synchronization disabled).
+[Intense Debate](http://wordpress.org/plugins/intensedebate/) or
+[Disqus](http://wordpress.org/plugins/disqus-comment-system/) (with the
+synchronization disabled).
 
-[Batcache]: http://wordpress.org/plugins/batcache/
-[Memcache]: http://wordpress.org/plugins/memcache/
-[Intense Debate]: http://wordpress.org/plugins/intensedebate/
-[Disqus]: http://wordpress.org/plugins/disqus-comment-system/
+* [Batcache: http://wordpress.org/plugins/batcache/](http://wordpress.org/plugins/batcache/)
+* [Memcache: http://wordpress.org/plugins/memcache/](http://wordpress.org/plugins/memcache/)
+* [Intense Debate: http://wordpress.org/plugins/intensedebate/](http://wordpress.org/plugins/intensedebate/)
+* [Disqus: http://wordpress.org/plugins/disqus-comment-system/](http://wordpress.org/plugins/disqus-comment-system/)
 
 
-== Changelog ==
+-----
 
-= 1.4 =
+
+### Changelog
+
+
+#### 1.4
+
 * Use a default 30 second timeout for URLFetch requests.
 * Use auto loading for GAE SDK now that it is available.
-* Use CloudStorageTools::getPublicUrl() for Cloud Storage URLs so that they
+* Use `CloudStorageTools::getPublicUrl()` for Cloud Storage URLs so that they
   work correctly on the development server.
 * Add support for serving uploaded media files over HTTPs.
 
-= 1.3 =
+
+#### 1.3
+
 * Add support for importing a WDX file from Google Cloud Storage into the site.
 * Provide a URL Fetch based HTTP client, which is optimized for the App Engine
   environment. This also corrects issues caused by fsockopen only being available
   to paid application in the production environment.
 * Fix bug detecting if the Cloud Storage bucket is writable during plugin setup.
 
-= 1.2 =
-* Use CloudStorageTools::getPublicUrl in the dev environment so PIL is not a requirement.
+
+#### 1.2
+
+* Use `CloudStorageTools::getPublicUrl` in the dev environment so PIL is not a
+  requirement.
 * Fix Readme file to highlight that the plugin is for Google App Engine only.
 * Work around is_writable check in the development environment.
 
-= 1.1 =
+
+#### 1.1
+
 * Fix uploads issue on the development server where PyCrypto is not available.
-* include 'max_bytes_per_blob' in createUploadUrl options only if wp_max_upload_size() is a positive int
+* include `max_bytes_per_blob` in `createUploadUrl` options only if
+  `wp_max_upload_size()` is a positive int
 * Remove writable bucket check work around is this is now natively supported.
 
-= 1.0 =
+
+#### 1.0
+
 * Initial release
 
 
-== Upgrade Notice ==
+-----
 
-= 1.4 =
+
+### Upgrade Notice
+
+
+#### 1.4
+
 * Use a default 30 second timeout for URLFetch requests.
 * Use auto loading for GAE SDK.
-* Use CloudStorageTools::getPublicUrl() for Cloud Storage URLs so that they
+* Use `CloudStorageTools::getPublicUrl()` for Cloud Storage URLs so that they
   work correctly on the development server.
 * Add support for serving uploaded media files over HTTPs.
 
-= 1.3 =
+
+#### 1.3
+
 * Add support for importing a WDX file from Google Cloud Storage into the site.
 * Provide a URL Fetch based HTTP client, which is optimized for the App Engine
   environment. This also corrects issues caused by fsockopen only being available
   to paid application in the production environment.
 
-= 1.2 =
-* Use CloudStorageTools::getPublicUrl in the dev environment so PIL is not a requirement.
+
+#### 1.2
+
+* Use `CloudStorageTools::getPublicUrl` in the dev environment so PIL is not a
+  requirement.
 * Work around is_writable check in the development environment.
 
-= 1.1 =
+
+#### 1.1
+
 * Fix uploads issue on the development server where PyCrypto is not available.
-* include 'max_bytes_per_blob' in createUploadUrl options only if wp_max_upload_size() is a positive int
+* include `max_bytes_per_blob` in `createUploadUrl` options only if
+  `wp_max_upload_size()` is a positive int
 * Remove writable bucket check work around is this is now natively supported.
 
-= 1.0 =
+
+#### 1.0
+
 This version is the initial release of Google App Engine for WordPress.
