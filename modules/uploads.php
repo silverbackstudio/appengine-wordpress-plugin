@@ -104,6 +104,7 @@ class Uploads {
 		// ::get_intermediate_url() takes 3 parameters
 		add_filter( 'image_downsize', __CLASS__ . '::get_intermediate_url', self::NORMAL_PRIORITY, 3 );
 		add_filter( 'wp_image_editors', __CLASS__ . '::custom_image_editor' );
+		add_filter('wp_get_attachment_url', __CLASS__ . '::get_attachment_url', self::NORMAL_PRIORITY, 2);
 	}
 
 	/**
@@ -414,6 +415,42 @@ class Uploads {
 			(bool) $real_size // image is intermediate
 		];
 		return $data;
+	}
+
+	/**
+    	 * Get a public URL for an attachment file
+	 *
+	 * Uses Google Cloud Storage to generate a public URL.
+	 *
+	 * @wp-filter wp_get_attachment_url
+	 *
+	 * @param null|array $url raw url of the attachment (we always override)
+	 * @param int $id Attachment ID
+	 * @return string Public URL
+	 */
+	public static function get_attachment_url($url, $id)
+	{
+		$file = get_attached_file($id);
+		if (0 !== strpos($file, 'gs://') || self::$skip_image_filters) {
+			return $url;
+		}
+
+		$baseurl = get_post_meta($id, '_appengine_imageurl', true);
+		$cached_file = get_post_meta($id, '_appengine_imageurl_file', true);
+		$secure_urls = (bool)get_option(self::USE_SECURE_URLS_OPTION, false);
+
+		if (empty($baseurl) || $cached_file !== $file) {
+			try {
+				$baseurl = CloudStorageTools::getPublicUrl($file, $secure_urls);
+
+				update_post_meta($id, '_appengine_imageurl', $baseurl);
+				update_post_meta($id, '_appengine_imageurl_file', $file);
+			} catch (CloudStorageException $e) {
+				return $url;
+			}
+		}
+
+		return $baseurl;
 	}
 
 	/**
