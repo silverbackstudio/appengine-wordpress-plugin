@@ -103,8 +103,9 @@ class Uploads {
 
 		// ::get_intermediate_url() takes 3 parameters
 		add_filter( 'image_downsize', __CLASS__ . '::get_intermediate_url', self::NORMAL_PRIORITY, 3 );
+		add_filter( 'delete_attachment', __CLASS__ . '::delete_attachment_serving_image', self::NORMAL_PRIORITY, 1 );
 		add_filter( 'wp_image_editors', __CLASS__ . '::custom_image_editor' );
-		add_filter('wp_get_attachment_url', __CLASS__ . '::get_attachment_url', self::NORMAL_PRIORITY, 2);
+		add_filter( 'wp_get_attachment_url', __CLASS__ . '::get_attachment_url', self::NORMAL_PRIORITY, 2);
 	}
 
 	/**
@@ -400,6 +401,20 @@ class Uploads {
                     return [$url, $width, $height, $intermediate];
                 }
 	}
+	
+	/*
+	* Delete the image serving url when an attachment is deleted
+	*
+	* @wp-filter delete_attachment
+	*
+	* @param int $id Attachment ID
+	* @return null
+	*	
+	*/
+	
+	public static function delete_attachment_serving_image($post_id) {
+		return CloudStorageTools::deleteImageServingUrl(get_attached_file($post_id)); 
+	}	
 
 	/**
     	 * Get a public URL for an attachment file
