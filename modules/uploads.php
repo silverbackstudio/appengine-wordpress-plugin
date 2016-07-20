@@ -105,6 +105,7 @@ class Uploads {
 		add_filter( 'image_downsize', __CLASS__ . '::get_intermediate_url', self::NORMAL_PRIORITY, 3 );
 		add_filter( 'delete_attachment', __CLASS__ . '::delete_attachment_serving_image', self::NORMAL_PRIORITY, 1 );
 		add_filter( 'wp_image_editors', __CLASS__ . '::custom_image_editor' );
+		add_filter( 'pre_option_upload_url_path', __CLASS__ . '::upload_url_path');
 		add_filter( 'wp_get_attachment_url', __CLASS__ . '::get_attachment_url', self::NORMAL_PRIORITY, 2);
 	}
 
@@ -402,6 +403,24 @@ class Uploads {
                     return [$url, $width, $height, $intermediate];
                 }
 	}
+	
+	/*
+	* Set the default upload_url to the Google Cloud Storage Bucket
+	*
+	* @wp-filter pre_option_upload_url_path
+	*
+	* @param string $option Default upload URL
+	* @return string AppEngine Upload URL
+	*	
+	*/	
+	
+	public static function upload_url_path($option) {
+		if(self::is_production()){
+			$option = (get_option(self::USE_SECURE_URLS_OPTION, false)?'https://':'http://').CloudStorageTools::PRODUCTION_HOST_PATH_FORMAT.'/'.get_option( 'appengine_uploads_bucket', '' );
+		} 
+		
+		return $option;
+	}	
 	
 	/*
 	* Delete the image serving url when an attachment is deleted
