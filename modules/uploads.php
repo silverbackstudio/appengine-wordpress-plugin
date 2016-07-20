@@ -330,7 +330,8 @@ class Uploads {
 	 */
 	public static function get_intermediate_url( $data, $id, $size ) {
 		$file = get_attached_file( $id );
-		if ( 0 !== strpos( $file, 'gs://' ) || self::$skip_image_filters ) {
+		
+		if ( 0 !== strpos( $file, 'gs://' ) || self::$skip_image_filters || !in_array(get_post_mime_type($id), ['image/jpeg', 'image/png', 'image/gif']) ) {
 			return $data;
 		}
                 
