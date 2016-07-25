@@ -106,7 +106,8 @@ class Uploads {
 		add_filter( 'delete_attachment', __CLASS__ . '::delete_attachment_serving_image', self::NORMAL_PRIORITY, 1 );
 		add_filter( 'wp_image_editors', __CLASS__ . '::custom_image_editor' );
 		add_filter( 'pre_option_upload_url_path', __CLASS__ . '::upload_url_path');
-		add_filter( 'wp_get_attachment_url', __CLASS__ . '::get_attachment_url', self::NORMAL_PRIORITY, 2);
+		add_filter( 'wp_calculate_image_srcset', __CLASS__ . '::clean_srcset_sources',self::NORMAL_PRIORITY, 1 );		
+		add_filter( 'wp_calculate_image_srcset_meta', __CLASS__ . '::image_sizes_meta',self::NORMAL_PRIORITY, 4 );		
 	}
 
 	/**
@@ -330,79 +331,123 @@ class Uploads {
 	 * @return array Indexed array of URL, width, height, is intermediate
 	 */
 	public static function get_intermediate_url( $data, $id, $size ) {
-		$file = get_attached_file( $id );
 		
-		if ( 0 !== strpos( $file, 'gs://' ) || self::$skip_image_filters || !in_array(get_post_mime_type($id), ['image/jpeg', 'image/png', 'image/gif']) ) {
+		if ( self::$skip_image_filters) {
 			return $data;
 		}
-                
-                $metadata  = wp_get_attachment_metadata($id);
-                list($width, $height) = image_constrain_size_for_editor($metadata['width'], $metadata['height'], $size);
-                
-                $intermediate = !(($width === $metadata['width']) && ($height === $metadata['height']));
+                                
+		$baseurl = self::get_attachment_serving_url($id);
+                                
+		if(false === $baseurl) {
+
+			self::$skip_image_filters = true;
+			$data = image_downsize( $id, $size );
+			self::$skip_image_filters = false;
+
+			return $data;			
+			
+		}                                
                                 
 		$sizes = self::image_sizes();
+		
 		if ( is_array( $size ) ) {
 			$sizeParams = ['width' => $size[0], 'height' => $size[1], 'crop' => false];
 		}
 		else {
 			$sizeParams = $sizes[ $size ];
 		}
+
+        $metadata  = wp_get_attachment_metadata($id);
+        list($width, $height) = wp_constrain_dimensions($metadata['width'], $metadata['height'], $sizeParams['width'], $sizeParams['height']);
+        
+        $intermediate = !(($width === $metadata['width']) && ($height === $metadata['height']));
+
+		$url = self::resize_serving_url( $baseurl, $intermediate ? $sizeParams : [] );
                 
+        if($intermediate) {
+			$width = $sizeParams['width'];
+			$height = $sizeParams['height'];
+        }
+                
+        return [$url, $width, $height, $intermediate];
+	}
+	
+	
+	public static function get_attachment_serving_url($id){
+
+		$file = get_attached_file( $id );
+
+		if ( 0 !== strpos( $file, 'gs://' ) || !in_array(get_post_mime_type($id), ['image/jpeg', 'image/png', 'image/gif']) ) {
+			return false;
+		}		
+		
 		$baseurl     = get_post_meta( $id, '_appengine_imageurl', true );
 		$cached_file = get_post_meta( $id, '_appengine_imageurl_file', true );
-                $secure_urls = (bool) get_option(self::USE_SECURE_URLS_OPTION, false);
+		
+        $secure_urls = (bool) get_option(self::USE_SECURE_URLS_OPTION, false);
 
 		if ( empty( $baseurl ) || $cached_file !== $file ) {
 			try {
-				if (self::is_production()) {
-                                        $options = ['secure_url' => $secure_urls];
-                                                $baseurl = CloudStorageTools::getImageServingUrl($file, $options);
-                                            }
-				// If running on the development server, use getPublicUrl() instead
-				// of getImageServingUrl().
-				// This removes the requirement for the Python PIL library to be installed
-				// in the development environment.
-				// TODO: this is a temporary modification.
-				else {
-					$baseurl = CloudStorageTools::getPublicUrl($file, $secure_urls);
-				}
-                                update_post_meta( $id, '_appengine_imageurl', $baseurl );
-                                update_post_meta( $id, '_appengine_imageurl_file', $file );
+				
+		        $baseurl = CloudStorageTools::getImageServingUrl($file, ['secure_url' => $secure_urls]);
+		        
+		        update_post_meta( $id, '_appengine_imageurl', $baseurl );
+		        update_post_meta( $id, '_appengine_imageurl_file', $file );
+                
 			}
 			catch ( CloudStorageException $e ) {
-        syslog(LOG_ERR,
-            'There was an exception creating the Image Serving URL, details ' .
-            $e->getMessage());
-				self::$skip_image_filters = true;
-				$data = image_downsize( $id, $size );
-				self::$skip_image_filters = false;
+				
+				syslog(LOG_ERR, 'There was an exception creating the Image Serving URL, details ' . $e->getMessage());
+				
+				return false;
 
-				return $data;
 			}
-		}
-
-                $url = $baseurl;
-
-		// Only append image options to the URL if we're running in production,
-		// since in the development context getPublicUrl() is currently used to
-		// generate the URL.
-		if (self::is_production()) {
-                    if ( $intermediate && $sizeParams['crop']) {                           
-                        $url .= ('=w'.$sizeParams['width']. '-h'.$sizeParams['height'].'-c');
-                    } elseif( $intermediate && !$sizeParams['crop']) {
-                        $url .=  ('=w'.$width. '-h'.$height);
-                    }else {
-                        $url .= '=s0';
-                    }
-		}
-                
-                if($intermediate && $sizeParams['crop']){
-                    return [$url, $sizeParams['width'], $sizeParams['height'], $intermediate];
-                } else {
-                    return [$url, $width, $height, $intermediate];
-                }
+		}		
+		
+		return $baseurl;
+		
 	}
+	
+
+	public static function resize_serving_url($url, $p) {
+		
+		$defaults = array(
+			'width'=>'',
+			'height'=>'',
+			'crop'=>'',
+			'quality'=>'', //1-100
+			'stretch'=>false
+		);
+		
+		$p = array_merge($defaults, $p);
+		
+		$params = array();
+		
+		if($p['width'] && $p['height']){
+			
+			$params[]='w'.$p['width'];
+			$params[]='h'.$p['height'];
+			
+			if($p['stretch']){
+				$params[] = 's';
+			}
+			
+		} elseif($p['width']){
+			$params[]= 's'.$p['width'];
+		} elseif($p['height']) {
+			$params[]= 's'.$p['height'];
+		} else {
+			$params[] = 's0';
+		}
+		
+		if($p['crop']){
+			$params[] = 'c';
+		}		
+		
+		return $url.'='.join('-', $params);;
+	}
+	
+	
 	
 	/*
 	* Set the default upload_url to the Google Cloud Storage Bucket
@@ -436,41 +481,47 @@ class Uploads {
 		return CloudStorageTools::deleteImageServingUrl(get_attached_file($post_id)); 
 	}	
 
-	/**
-    	 * Get a public URL for an attachment file
-	 *
-	 * Uses Google Cloud Storage to generate a public URL.
-	 *
-	 * @wp-filter wp_get_attachment_url
-	 *
-	 * @param null|array $url raw url of the attachment (we always override)
-	 * @param int $id Attachment ID
-	 * @return string Public URL
-	 */
-	public static function get_attachment_url($url, $id)
-	{
-		$file = get_attached_file($id);
-		if (0 !== strpos($file, 'gs://') || self::$skip_image_filters) {
-			return $url;
+
+	public static function clean_srcset_sources($sources){
+		
+		$upload_dir = wp_get_upload_dir();
+		$wrong_url =  trailingslashit( $upload_dir['baseurl'] );
+		
+		foreach ( $sources as &$source ) {
+			$source['url'] = str_replace($wrong_url, '', $source['url'] );
 		}
-
-		$baseurl = get_post_meta($id, '_appengine_imageurl', true);
-		$cached_file = get_post_meta($id, '_appengine_imageurl_file', true);
-		$secure_urls = (bool)get_option(self::USE_SECURE_URLS_OPTION, false);
-
-		if (empty($baseurl) || $cached_file !== $file) {
-			try {
-				$baseurl = CloudStorageTools::getPublicUrl($file, $secure_urls);
-
-				update_post_meta($id, '_appengine_imageurl', $baseurl);
-				update_post_meta($id, '_appengine_imageurl_file', $file);
-			} catch (CloudStorageException $e) {
-				return $url;
-			}
-		}
-
-		return $baseurl;
+	
+		return $sources;		
 	}
+	
+	static function image_sizes_meta( $image_meta, $size_array, $image_src, $attachment_id){
+		
+		syslog(LOG_DEBUG, 'INPUT SIZE:'.print_r($size_array, true));
+		
+		$baseurl = self::get_attachment_serving_url($attachment_id);
+		
+		// Get the width and height of the image.
+		$image_width = (int) $size_array[0];
+		$image_height = (int) $size_array[1];
+
+		$ratios = [0.25, 0.5, 1, 2];
+		
+		foreach($ratios as $key=>$ratio) {
+			$ratio_size = array(
+					'width'=>ceil($image_width*$ratio),
+					'height'=>ceil($image_height*$ratio),
+					'crop'=>false
+			);
+				
+			$image_meta['sizes'][$key] = $ratio_size;
+			$image_meta['sizes'][$key]['file'] = self::resize_serving_url($baseurl, $ratio_size);				
+			
+		}		
+		
+		syslog(LOG_DEBUG, 'FAKE SIZES:'.print_r($image_meta['sizes'], true));
+		
+		return $image_meta;		
+	}	
 
 	/**
 	 * Provide an array of available image sizes and corresponding dimensions.
