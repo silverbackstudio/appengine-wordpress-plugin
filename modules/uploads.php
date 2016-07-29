@@ -106,7 +106,7 @@ class Uploads {
 		add_filter( 'delete_attachment', __CLASS__ . '::delete_attachment_serving_image', self::NORMAL_PRIORITY, 1 );
 		add_filter( 'wp_image_editors', __CLASS__ . '::custom_image_editor' );
 		add_filter( 'pre_option_upload_url_path', __CLASS__ . '::upload_url_path');
-		add_filter( 'wp_calculate_image_srcset', __CLASS__ . '::clean_srcset_sources',self::NORMAL_PRIORITY, 1 );		
+		add_filter( 'wp_calculate_image_srcset', __CLASS__ . '::clean_srcset_sources',self::NORMAL_PRIORITY, 5 );		
 		add_filter( 'wp_calculate_image_srcset_meta', __CLASS__ . '::image_sizes_meta',self::NORMAL_PRIORITY, 4 );		
 	}
 
@@ -423,19 +423,10 @@ class Uploads {
 		
 		$params = array();
 		
-		if($p['width'] && $p['height']){
-			
-			$params[]='w'.$p['width'];
-			$params[]='h'.$p['height'];
-			
-			if($p['stretch']){
-				$params[] = 's';
-			}
-			
-		} elseif($p['width']){
-			$params[]= 's'.$p['width'];
+		if($p['width']){
+			$params[]= 'w'.$p['width'];
 		} elseif($p['height']) {
-			$params[]= 's'.$p['height'];
+			$params[]= 'h'.$p['height'];
 		} else {
 			$params[] = 's0';
 		}
@@ -444,7 +435,7 @@ class Uploads {
 			$params[] = 'c';
 		}		
 		
-		return $url.'='.join('-', $params);;
+		return $url.'='.join('-', $params);
 	}
 	
 	
@@ -482,21 +473,18 @@ class Uploads {
 	}	
 
 
-	public static function clean_srcset_sources($sources){
+	public static function clean_srcset_sources($sources, $size_array, $image_src, $image_meta, $attachment_id){
 		
-		$upload_dir = wp_get_upload_dir();
-		$wrong_url =  trailingslashit( $upload_dir['baseurl'] );
-		
+		$baseurl = self::get_attachment_serving_url($attachment_id);
+	
 		foreach ( $sources as &$source ) {
-			$source['url'] = str_replace($wrong_url, '', $source['url'] );
+			$source['url'] = self::resize_serving_url($baseurl, array('width'=>$source['value']));
 		}
 	
-		return $sources;		
+		return $sources;
 	}
 	
 	static function image_sizes_meta( $image_meta, $size_array, $image_src, $attachment_id){
-		
-		syslog(LOG_DEBUG, 'INPUT SIZE:'.print_r($size_array, true));
 		
 		$baseurl = self::get_attachment_serving_url($attachment_id);
 		
@@ -517,8 +505,6 @@ class Uploads {
 			$image_meta['sizes'][$key]['file'] = self::resize_serving_url($baseurl, $ratio_size);				
 			
 		}		
-		
-		syslog(LOG_DEBUG, 'FAKE SIZES:'.print_r($image_meta['sizes'], true));
 		
 		return $image_meta;		
 	}	
@@ -699,7 +685,7 @@ class Admin {
                        'appengine-uploads',
                        ['label_for' => 'appengine_uploads_bucket']);
 
-    add_settings_field(Uploads::USE_SECURE_URLS_OPTION,
+    	add_settings_field(Uploads::USE_SECURE_URLS_OPTION,
                        __('Use secure URLs for serving media files', 'appengine'),
                        __CLASS__ . '::enable_secure_urls',
                        'appengine',
