@@ -1,5 +1,5 @@
 {
-  "name": "GoogleCloudPlatform/appengine-wordpress-plugin",
+  "name": "silverbackstudio/appengine-wordpress-plugin",
   "type": "wordpress-plugin",
   "description": "Optimize your WordPress installation for Google App Engine",
   "keywords": [
