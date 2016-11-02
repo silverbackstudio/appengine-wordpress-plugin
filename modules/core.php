@@ -74,12 +74,25 @@ class Core {
 		// ::settings_link() takes 2 parameters
 		add_filter( 'plugin_action_links', __CLASS__ . '::settings_link', self::NORMAL_PRIORITY, 2 );
 		add_filter( 'wpseo_canonical', __CLASS__ . '::force_canonical_domain' );
+		add_filter( 'robots_txt', __CLASS__ . '::noindex_appspot_subdomains' );
 		add_action( 'appengine_register_settings', __CLASS__ . '::register_google_settings' );
 		add_action( 'admin_enqueue_scripts', __CLASS__ . '::register_styles' );
 		add_action( 'admin_menu', __CLASS__ . '::register_settings_page' );
 		add_action( 'admin_init', __CLASS__ . '::register_settings' );
 		add_action( 'init', __CLASS__ . '::load_textdomain' );
 
+	}
+
+	public static function noindex_appspot_subdomains($output){
+		
+		$canonical_url = get_option('appengine_canonical_domain', '');
+
+		if ($canonical_url && get_option('appengine_noindex_versions', false) && (HTTP_HOST != parse_url($canonical_url, PHP_URL_HOST)) ){
+			    $output = "User-agent: *\n";
+				$output .= "Disallow: /\n";
+		}
+		
+		return $output;
 	}
 
 	public static function force_canonical_domain($canonical){
@@ -142,6 +155,7 @@ class Core {
 		
     	register_setting('appengine_settings', 'appengine_canonical_domain', __CLASS__ . '::canonical_domain_validation');
     	register_setting('appengine_settings', 'appengine_force_ssl_frontend', __CLASS__ . '::frontend_ssl_validation');
+    	register_setting('appengine_settings', 'appengine_noindex_versions', __CLASS__ . '::noindex_version_validation');
 
 		add_settings_section('appengine-domain', __( 'Domain Settings', 'appengine' ), __CLASS__ . '::section_text', 'appengine');
 
@@ -158,6 +172,14 @@ class Core {
                        'appengine',
                        'appengine-domain',
                        ['label_for' => 'appengine_force_ssl_frontend']);
+
+		add_settings_field('appengine_noindex_versions',
+                       __('Index canonical domain only', 'appengine'),
+                       __CLASS__ . '::appengine_noindex_versions',
+                       'appengine',
+                       'appengine-domain',
+                       ['label_for' => 'appengine_noindex_versions']);		
+                       
 	}
 
 	public static function canonical_domain_validation($input) {
@@ -177,6 +199,15 @@ class Core {
     	return (bool) $input;
 	}
 	
+	public static function noindex_version_validation($input) {
+		
+		if( !get_option('appengine_canonical_domain', '') ){
+			add_settings_error( 'appengine_settings', 'noinde-no-canonical-domain-', __( 'You must enter a canonical domain to use this feature', 'appengine' ) );
+		}		
+		
+    	return (bool) $input;
+	}
+	
 	public static function canonical_domain_input() {
 		$canonical_domain = get_option( 'appengine_canonical_domain', '' );
 		echo '<input id="appengine_canonical_domain" name="appengine_canonical_domain" type="text" value="' . esc_attr( $canonical_domain ) . '" />';
@@ -188,6 +219,12 @@ class Core {
 		echo '<input id="appengine_force_ssl_frontend" name="appengine_force_ssl_frontend" type="checkbox" ' . checked( $enabled, true, false ) . ' />';
 		echo '<p class="description">' . __( 'Redirect all frontend URLs to HTTPs. Please use HSTS insted of this.', 'appengine').'</p>';
 	}	
+	
+	public static function appengine_noindex_versions() {
+		$enabled = get_option( 'appengine_noindex_versions', false );
+		echo '<input id="appengine_noindex_versions" name="appengine_noindex_versions" type="checkbox" ' . checked( $enabled, true, false ) . ' />';
+		echo '<p class="description">' . __( 'Disable Search Engine Indexing on AppEngine Service domains (*.appspot.com) via robots.txt', 'appengine').'</p>';
+	}		
 
 	/**
 	 * Register the styles for the App Engine administration UI
