@@ -385,7 +385,7 @@ class Uploads {
 		$cached_file = get_post_meta( $id, '_appengine_imageurl_file', true );
 		
         $secure_urls = (bool) get_option(self::USE_SECURE_URLS_OPTION, false);
-
+        
 		if ( empty( $baseurl ) || $cached_file !== $file ) {
 			try {
 				
@@ -402,7 +402,9 @@ class Uploads {
 				return false;
 
 			}
-		}		
+		}	elseif ($secure_urls) {
+			$baseurl = preg_replace("/^http:/i", "https:", $baseurl);
+		}
 		
 		return $baseurl;
 		
