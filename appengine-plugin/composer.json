@@ -1,5 +1,5 @@
 {
-  "name": "silverbackstudio/appengine-wordpress-plugin",
+  "name": "google/appengine-wordpress-plugin",
   "type": "wordpress-plugin",
   "description": "Optimize your WordPress installation for Google App Engine",
   "keywords": [
