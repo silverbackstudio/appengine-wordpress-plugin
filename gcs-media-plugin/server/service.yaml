@@ -1,0 +1,21 @@
+service: imageservice
+runtime: php55
+api_version: 1
+instance_class: F1
+threadsafe: false
+
+default_expiration: 1m
+
+automatic_scaling:
+  min_idle_instances: 0
+  max_idle_instances: 1
+
+handlers:
+- url: /(.+)?/?
+  script: service.php
+
+skip_files:
+- ^wp-gcs-media.php
+
+env_variables:
+  GCS_BUCKET: bucketname

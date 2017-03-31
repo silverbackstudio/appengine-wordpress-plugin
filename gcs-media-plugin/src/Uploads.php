@@ -22,12 +22,12 @@
  * Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-namespace Google\Cloud\Storage\WordPress\Uploads;
+namespace Google\Cloud\Storage\WordPress;
 
 defined('ABSPATH') or die('No direct access!');
 
-Uploads::bootstrap_settings();
-Uploads::bootstrap();
+use google\appengine\api\cloud_storage\CloudStorageException;
+use google\appengine\api\cloud_storage\CloudStorageTools;
 
 /**
  * Functionalities for media upload.
@@ -46,12 +46,22 @@ class Uploads
         add_filter('wp_delete_file', __CLASS__ . '::filter_delete_file');
     }
 
+    public static function bucket(){
+        if(storage_tools_available()){
+            $default = CloudStorageTools::getDefaultGoogleStorageBucketName();
+        } else {
+            $default = '';
+        }
+        
+        return get_option(self::BUCKET_OPTION, $default);        
+    }
+
     /**
      * Swap the upload dir with gs:// path in the GCS bucket.
      */
     public static function filter_upload_dir($values)
     {
-        $bucket = get_option(self::BUCKET_OPTION, '');
+        $bucket = self::bucket();
         if ($bucket === '') {
             // Do nothing without the bucket name.
             return $values;
@@ -107,12 +117,11 @@ class Uploads
      */
     public static function bucket_form()
     {
-        $bucket = get_option(self::BUCKET_OPTION, '');
         echo sprintf(
             '<input id="%s" name="%s" type="text" value="%s">',
             self::BUCKET_OPTION,
             self::BUCKET_OPTION,
-            esc_attr($bucket)
+            esc_attr( self::bucket() )
         );
         echo '<p class="description">'
             . __('GCS bucket name for media upload', 'gcp')
@@ -152,7 +161,7 @@ class Uploads
                 'gcs_settings',
                 'invalid-bucket',
                 __('The bucket does not exist, or is not writable', 'gcp'));
-            return get_option(self::BUCKET_OPTION, '');
+            return self::bucket();
         }
         return $input;
     }
@@ -181,24 +190,26 @@ class Uploads
             self::USE_HTTPS_OPTION,
             __CLASS__ . '::validate_use_https'
         );
+        
         add_settings_section(
             'gcs_media',
             __('Media upload configurations', 'gcs'),
             null,
-            'gcs'
+            'media'
         );
+        
         add_settings_field(
             self::BUCKET_OPTION,
             __('Bucket name for media upload', 'gcs'),
             __CLASS__ . '::bucket_form',
-            'gcs',
+            'media',
             'gcs_media'
         );
         add_settings_field(
             self::USE_HTTPS_OPTION,
             __('Use secure URLs for serving media files', 'gcs'),
             __CLASS__ . '::use_https_form',
-            'gcs',
+            'media',
             'gcs_media'
         );
     }

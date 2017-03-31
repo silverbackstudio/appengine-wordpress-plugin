@@ -30,77 +30,17 @@ Street, Fifth Floor, Boston, MA 02110-1301, USA.
 
 namespace Google\Cloud\Storage\WordPress;
 
-require_once __DIR__ . '/vendor/autoload.php';
+if(file_exists(__DIR__ . '/vendor/autoload.php')){
+  require_once __DIR__ . '/vendor/autoload.php';    
+}
 
-$storageClient = new \Google\Cloud\Storage\StorageClient();
-$storageClient->registerStreamWrapper();
+if( ! is_appengine() ){
+  $storageClient = new \Google\Cloud\Storage\StorageClient();
+  $storageClient->registerStreamWrapper();
+}
 
 define(__NAMESPACE__ . '\\PLUGIN_DIR', __DIR__);
 define(__NAMESPACE__ . '\\PLUGIN_PATH', __FILE__);
-
-/**
- * Render the options page.
- */
-function options_page_view()
-{
-    // check user capabilities
-    if (!current_user_can('manage_options')) {
-        return;
-    } ?>
-    <div class="wrap">
-        <h1><?= esc_html(get_admin_page_title()); ?></h1>
-        <form action="options.php" method="POST">
-            <?php
-            // output security fields for the registered setting "gcs_settings"
-            settings_fields('gcs_settings');
-            // output setting sections and their fields (sections are
-            // registered for "gcs", each field is registered to a specific
-            // section)
-            do_settings_sections('gcs');
-            // output save settings button
-            submit_button(__('Save Settings', 'gcs')); ?>
-        </form>
-    </div>
-    <?php
-
-}
-
-/**
- * Callback for defining options.
- */
-function options_page()
-{
-    add_options_page(
-        __('GCS Plugin Configurations', 'gcs'),
-        __('GCS', 'gcs'),
-        'manage_options',
-        'gcs',
-        __NAMESPACE__ . '\\options_page_view'
-    );
-}
-
-/**
- * Callback for plugin activation.
- *
- * Call an action 'gcs_activation' to allow sub modules doing their own stuff.
- */
-function activation_hook()
-{
-    do_action('gcs_activation');
-}
-
-/**
- * Add a settings link for the plugin
- * @wp-action plugin_action_links
- */
-function settings_link($links, $file)
-{
-    if ($file === plugin_basename(PLUGIN_PATH)) {
-        $links[] = '<a href="' . admin_url('options-general.php?page=gcs')
-            . '">' . __('Settings', 'gcs') . '</a>';
-    }
-    return $links;
-}
 
 /**
  * Callback for registering the setting.
@@ -111,8 +51,28 @@ function register_settings()
 }
 
 register_activation_hook(__FILE__, __NAMESPACE__ . '\\activation_hook');
-add_filter('plugin_action_links', __NAMESPACE__ . '\\settings_link', 10, 2);
-add_action('admin_menu', __NAMESPACE__ . '\\options_page');
 add_action('admin_init', __NAMESPACE__ . '\\register_settings');
 
-require_once(__DIR__ . '/Uploads/Uploads.php');
+if(!class_exists('Google\Cloud\Storage\WordPress\Uploads')) {
+    require_once(__DIR__ . '/src/Uploads.php');
+}
+if(!class_exists('Google\Cloud\Storage\WordPress\Images')) {
+    require_once(__DIR__ . '/src/Images.php');
+}
+
+Uploads::bootstrap_settings();
+Images::bootstrap_settings();
+
+Uploads::bootstrap();
+
+if( get_option(Images::ENABLED_OPTION, false) ){
+    Images::bootstrap();
+}
+
+function is_appengine() {
+  return isset( $_SERVER['SERVER_SOFTWARE'] ) && strpos( $_SERVER['SERVER_SOFTWARE'], 'Google App Engine' ) !== false;
+}
+
+function storage_tools_available(){
+	return class_exists('\google\appengine\api\cloud_storage\CloudStorageTools');
+}
