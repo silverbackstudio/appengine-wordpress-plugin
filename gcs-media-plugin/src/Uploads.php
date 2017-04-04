@@ -52,8 +52,8 @@ class Uploads
         } else {
             $default = '';
         }
-        
-        return get_option(self::BUCKET_OPTION, $default);        
+
+        return get_option(self::BUCKET_OPTION, $default);
     }
 
     /**
@@ -181,23 +181,23 @@ class Uploads
     {
         add_option(self::USE_HTTPS_OPTION, true);
         register_setting(
-            'gcs_settings',
+            'media',
             self::BUCKET_OPTION,
             __CLASS__ . '::validate_bucket'
         );
         register_setting(
-            'gcs_settings',
+            'media',
             self::USE_HTTPS_OPTION,
             __CLASS__ . '::validate_use_https'
         );
-        
+
         add_settings_section(
             'gcs_media',
             __('Media upload configurations', 'gcs'),
             null,
             'media'
         );
-        
+
         add_settings_field(
             self::BUCKET_OPTION,
             __('Bucket name for media upload', 'gcs'),
