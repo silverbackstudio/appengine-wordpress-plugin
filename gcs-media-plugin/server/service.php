@@ -14,7 +14,7 @@ if(!preg_match('@([^/]+)/(.+)$@', $uri, $matches)){
 };
 
 $bucket = $matches[1];
-$path = $matches[2];
+$path = urldecode($matches[2]);
 
 $filepath = CloudStorageTools::getFilename($bucket, $path);
 $cache_key = 'imgsrv_'.md5($filepath);
