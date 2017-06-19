@@ -102,9 +102,9 @@ class Images {
 
 		$metadata  = wp_get_attachment_metadata($id);
 		$sizeParams = self::resize_image( $size, $metadata['width'], $metadata['height'] );
-		$intermediate = !(($currentSize['width'] === $metadata['width']) && ($currentSize['height'] === $metadata['height']));
+		$url = self::resize_serving_url( $baseurl, (array)$sizeParams );
 
-		$url = self::resize_serving_url( $baseurl, $sizeParams );
+		$intermediate = $sizeParams && !(($currentSize['width'] === $metadata['width']) && ($currentSize['height'] === $metadata['height']));
 
 	    return [$url, $currentSize['width'], $currentSize['height'], $intermediate];
 	}
@@ -162,7 +162,7 @@ class Images {
 	    return trailingslashit( get_option(self::SERVICE_URL_OPTION) ).$filename;
 	}
 
-	public static function resize_serving_url($url, $size) {
+	public static function resize_serving_url($url, $p) {
 
 		$defaults = array(
 			'width'=>'',
@@ -224,7 +224,11 @@ class Images {
 	public static function resize_image_dimensions( $orig_w, $orig_h, $dest_w, $dest_h, $crop = false){
 		$params = image_resize_dimensions( $orig_w, $orig_h, $dest_w, $dest_h, $crop );
 		
-		return array('width' =>  $params[5], 'height' => $params[6], 'crop' => $crop );
+		if( false === $params ){
+			return false;
+		}
+		
+		return array('width' =>  $params[4], 'height' => $params[5], 'crop' => $crop );
 	}
 
 	public static function attachment_image_srcset($attr, $attachment, $size){
@@ -239,14 +243,18 @@ class Images {
 
 		$srcset = '';
 		
-		$metadata = wp_get_attachment_metadata( $attachment_id );
+		$metadata = wp_get_attachment_metadata( $attachment->ID );
 		$sizeParams = self::resize_image( $size, $metadata['width'], $metadata['height'] );
+		
+		if( false === $sizeParams ){
+			return $attr;
+		}
 		
 		$lastSize = null;
 
 		foreach($ratios as $key=>$ratio) {
 			$currentSize = self::resize_image_dimensions($metadata['width'], $metadata['height'], ceil($sizeParams['width'] * $ratio), ceil($sizeParams['height'] * $ratio), $sizeParams['crop']   );
-			if( $lastSize === $currentSize ) {
+			if( !$currentSize || ($lastSize === $currentSize) ) {
 				continue;
 			}
 			$lastSize = $currentSize;
