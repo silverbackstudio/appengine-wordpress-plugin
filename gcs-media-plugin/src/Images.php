@@ -203,35 +203,22 @@ class Images {
 	}
 
 	public static function resize_image( $size, $orig_w, $orig_h ) {
-		
-		static $images_sizes = array();
 
-		if ( empty($image_sizes) ) {
-			$default_image_sizes = array( 'thumbnail', 'medium', 'large' );
-	
-			$images = array();
-	
-			foreach ( $default_image_sizes as $size ) {
-				$images[$size]['width']	= intval( get_option( "{$size}_size_w") );
-				$images[$size]['height'] = intval( get_option( "{$size}_size_h") );
-				$images[$size]['crop']	= get_option( "{$size}_crop" ) ? get_option( "{$size}_crop" ) : false;
-			}
-	
-			$image_sizes = array_merge( $images, wp_get_additional_image_sizes() );
-		}
- 
-		if( 'full' === $size ){
-			$sizeParams = ['width' => $orig_w, 'height' => $orig_h, 'crop' => false];
-		} elseif ( is_array( $size ) ) {
+		$images[$size]['width']	= intval( get_option( "{$size}_size_w") );
+		$images[$size]['height'] = intval( get_option( "{$size}_size_h") );
+		$images[$size]['crop']	= boolval( get_option( "{$size}_crop" ) ?: false);
+
+		$image_sizes = array_merge( $images, wp_get_additional_image_sizes() );
+		
+		if ( is_array( $size ) ) {
 			$sizeParams =  ['width' => $size[0], 'height' => $size[1], 'crop' => isset($size['crop']) ? $size['crop'] : false];
 		} elseif ( isset( $image_sizes[ $size ] ) ) {
 			$sizeParams = $image_sizes[ $size ];
 		} else {
-			$sizeParams = $image_sizes[ 'medium' ];
+			$sizeParams = ['width' => $orig_w, 'height' => $orig_h, 'crop' => false];
 		}		
 
 		return self::resize_image_dimensions( $orig_w, $orig_h, $sizeParams['width'], $sizeParams['height'], $sizeParams['crop'] );
-		
 	}
 
 	public static function resize_image_dimensions( $orig_w, $orig_h, $dest_w, $dest_h, $crop = false){
