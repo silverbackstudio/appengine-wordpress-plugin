@@ -104,9 +104,9 @@ class Images {
 		$sizeParams = self::resize_image( $size, $metadata['width'], $metadata['height'] );
 		$url = self::resize_serving_url( $baseurl, (array)$sizeParams );
 
-		$intermediate = $sizeParams && !(($currentSize['width'] === $metadata['width']) && ($currentSize['height'] === $metadata['height']));
+		$intermediate = $sizeParams && !(($sizeParams['width'] === $metadata['width']) && ($sizeParams['height'] === $metadata['height']));
 
-	    return [$url, $currentSize['width'], $currentSize['height'], $intermediate];
+	    return [$url, $sizeParams['width'], $sizeParams['height'], $intermediate];
 	}
 
 	public static function is_direct_api_access_available(){
