@@ -204,11 +204,19 @@ class Images {
 
 	public static function resize_image( $size, $orig_w, $orig_h ) {
 
-		$images[$size]['width']	= intval( get_option( "{$size}_size_w") );
-		$images[$size]['height'] = intval( get_option( "{$size}_size_h") );
-		$images[$size]['crop']	= boolval( get_option( "{$size}_crop" ) ?: false);
+		$image_sizes = wp_get_additional_image_sizes();
 
-		$image_sizes = array_merge( $images, wp_get_additional_image_sizes() );
+		$core_size = true;
+		
+		if( ! is_array( $size ) ) {
+			$core_size &= $image_sizes[$size]['width'] = intval( get_option( "{$size}_size_w") );
+			$core_size &= $image_sizes[$size]['height'] = intval( get_option( "{$size}_size_h") );
+			$image_sizes[$size]['crop']	= boolval( get_option( "{$size}_crop" ) ?: false);
+		}
+
+		if( ! $core_size )  {
+			unset( $image_sizes[$size] );
+		}
 		
 		if ( is_array( $size ) ) {
 			$sizeParams =  ['width' => $size[0], 'height' => $size[1], 'crop' => isset($size['crop']) ? $size['crop'] : false];
@@ -253,10 +261,19 @@ class Images {
 		$lastSize = null;
 
 		foreach($ratios as $key=>$ratio) {
-			$currentSize = self::resize_image_dimensions($metadata['width'], $metadata['height'], ceil($sizeParams['width'] * $ratio), ceil($sizeParams['height'] * $ratio), $sizeParams['crop']   );
+			$ratio_w = ceil($sizeParams['width'] * $ratio);
+			$ratio_h = ceil($sizeParams['height'] * $ratio);
+			
+			if( ($ratio_w > $metadata['width']) || ($ratio_h > $metadata['height']) ){
+				continue;
+			}
+			
+			$currentSize = self::resize_image_dimensions($metadata['width'], $metadata['height'], $ratio_w, $ratio_h, $sizeParams['crop'] );
+			
 			if( !$currentSize || ($lastSize === $currentSize) ) {
 				continue;
 			}
+			
 			$lastSize = $currentSize;
 			$resizedImg = self::resize_serving_url($baseurl, $currentSize );
 	    	$srcset .= str_replace( ' ', '%20', $resizedImg ) . ' ' . $currentSize['width'] . 'w, ';
