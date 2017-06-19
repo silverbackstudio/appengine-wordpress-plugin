@@ -101,8 +101,7 @@ class Images {
 		}
 
 		$metadata  = wp_get_attachment_metadata($id);
-		$sizeParams = self::explode_image_size( $size, $metadata );
-
+		$sizeParams = self::resize_image( $size, $metadata['width'], $metadata['height'] );
 		$intermediate = !(($currentSize['width'] === $metadata['width']) && ($currentSize['height'] === $metadata['height']));
 
 		$url = self::resize_serving_url( $baseurl, $sizeParams );
@@ -231,7 +230,7 @@ class Images {
 			$sizeParams = $image_sizes[ 'medium' ];
 		}		
 
-		return self::resize_image_dimensions( $metadata['width'], $metadata['height'], $sizeParams['width'], $sizeParams['height'], $sizeParams['crop'] );
+		return self::resize_image_dimensions( $orig_w, $orig_h, $sizeParams['width'], $sizeParams['height'], $sizeParams['crop'] );
 		
 	}
 
@@ -254,7 +253,7 @@ class Images {
 		$srcset = '';
 		
 		$metadata = wp_get_attachment_metadata( $attachment_id );
-		$sizeParams = self::resize_image( $size, $metadata );
+		$sizeParams = self::resize_image( $size, $metadata['width'], $metadata['height'] );
 		
 		$lastSize = null;
 
