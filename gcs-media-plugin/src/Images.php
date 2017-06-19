@@ -100,29 +100,14 @@ class Images {
 			return $data;
 		}
 
-		$sizes = self::image_sizes();
-
-		if ( ! is_array( $size ) && isset( $sizes[ $size ] ) ) {
-			$sizeParams = $sizes[ $size ];
-		} elseif( is_array($size) ) {
-			$sizeParams = ['width' => $size[0], 'height' => $size[1], 'crop' => false];
-		} else {
-			$sizeParams = $sizes[ 'medium' ];
-		}
-
 		$metadata  = wp_get_attachment_metadata($id);
-		list($width, $height) = wp_constrain_dimensions( $sizeParams['width'], $sizeParams['height'], $metadata['width'], $metadata['height'] );
+		$sizeParams = self::explode_image_size( $size, $metadata );
 
-		$intermediate = !(($width === $metadata['width']) && ($height === $metadata['height']));
+		$intermediate = !(($currentSize['width'] === $metadata['width']) && ($currentSize['height'] === $metadata['height']));
 
-		$url = self::resize_serving_url( $baseurl, $intermediate ? $sizeParams : $metadata );
+		$url = self::resize_serving_url( $baseurl, $sizeParams );
 
-		if($intermediate) {
-			$width = $sizeParams['width'];
-			$height = $sizeParams['height'];
-		}
-
-	    return [$url, $width, $height, $intermediate];
+	    return [$url, $currentSize['width'], $currentSize['height'], $intermediate];
 	}
 
 	public static function is_direct_api_access_available(){
@@ -178,7 +163,7 @@ class Images {
 	    return trailingslashit( get_option(self::SERVICE_URL_OPTION) ).$filename;
 	}
 
-	public static function resize_serving_url($url, $p) {
+	public static function resize_serving_url($url, $size) {
 
 		$defaults = array(
 			'width'=>'',
@@ -218,26 +203,42 @@ class Images {
 		return $url.'='.join('-', $params);
 	}
 
-	public static function image_sizes() {
+	public static function resize_image( $size, $orig_w, $orig_h ) {
+		
 		static $images_sizes = array();
 
-		if (!empty($image_sizes) ) {
-			return $image_sizes;
+		if ( empty($image_sizes) ) {
+			$default_image_sizes = array( 'thumbnail', 'medium', 'large' );
+	
+			$images = array();
+	
+			foreach ( $default_image_sizes as $size ) {
+				$images[$size]['width']	= intval( get_option( "{$size}_size_w") );
+				$images[$size]['height'] = intval( get_option( "{$size}_size_h") );
+				$images[$size]['crop']	= get_option( "{$size}_crop" ) ? get_option( "{$size}_crop" ) : false;
+			}
+	
+			$image_sizes = array_merge( $images, wp_get_additional_image_sizes() );
 		}
+ 
+		if( 'full' === $size ){
+			$sizeParams = ['width' => $orig_w, 'height' => $orig_h, 'crop' => false];
+		} elseif ( is_array( $size ) ) {
+			$sizeParams =  ['width' => $size[0], 'height' => $size[1], 'crop' => isset($size['crop']) ? $size['crop'] : false];
+		} elseif ( isset( $image_sizes[ $size ] ) ) {
+			$sizeParams = $image_sizes[ $size ];
+		} else {
+			$sizeParams = $image_sizes[ 'medium' ];
+		}		
 
-		$default_image_sizes = array( 'thumbnail', 'medium', 'large' );
+		return self::resize_image_dimensions( $metadata['width'], $metadata['height'], $sizeParams['width'], $sizeParams['height'], $sizeParams['crop'] );
+		
+	}
 
-		$images = array();
-
-		foreach ( $default_image_sizes as $size ) {
-			$images[$size]['width']	= intval( get_option( "{$size}_size_w") );
-			$images[$size]['height'] = intval( get_option( "{$size}_size_h") );
-			$images[$size]['crop']	= get_option( "{$size}_crop" ) ? get_option( "{$size}_crop" ) : false;
-		}
-
-		$image_sizes = array_merge( $images, wp_get_additional_image_sizes() );
-
-		return $image_sizes;
+	public static function resize_image_dimensions( $orig_w, $orig_h, $dest_w, $dest_h, $crop = false){
+		$params = image_resize_dimensions( $orig_w, $orig_h, $dest_w, $dest_h, $crop );
+		
+		return array('width' =>  $params[5], 'height' => $params[6], 'crop' => $crop );
 	}
 
 	public static function attachment_image_srcset($attr, $attachment, $size){
@@ -251,30 +252,20 @@ class Images {
 		$ratios = [0.25, 0.5, 1, 2];
 
 		$srcset = '';
-		$sizes = self::image_sizes();
-		$metadata = wp_get_attachment_metadata($attachment->ID);
-
-		if($size === 'full'){
-			$sizeParams = ['width' => $metadata['width'], 'height' => $metadata['height'], 'crop' => false];
-		} elseif ( is_array( $size ) ) {
-			$sizeParams = ['width' => $size[0], 'height' => $size[1], 'crop' => false];
-		} elseif ( isset( $sizes[ $size ] ) ) {
-			$sizeParams = $sizes[ $size ];
-		} else {
-			$sizeParams = $sizes[ 'medium' ];
-		}
-
-		$lastSizes = array(0,0);
+		
+		$metadata = wp_get_attachment_metadata( $attachment_id );
+		$sizeParams = self::resize_image( $size, $metadata );
+		
+		$lastSize = null;
 
 		foreach($ratios as $key=>$ratio) {
-			list($width, $height) = wp_constrain_dimensions( ceil($sizeParams['width'] * $ratio), ceil($sizeParams['height'] * $ratio), $metadata['width'], $metadata['height'] );
-			if( ($width === $lastSizes[0]) && ($height === $lastSizes[1]) ) {
+			$currentSize = self::resize_image_dimensions($metadata['width'], $metadata['height'], ceil($sizeParams['width'] * $ratio), ceil($sizeParams['height'] * $ratio), $sizeParams['crop']   );
+			if( $lastSize === $currentSize ) {
 				continue;
 			}
-			$lastSizes = array($width, $height);
-			$resizedImg = self::resize_serving_url($baseurl, array('width' =>  $width, 'height' => $height, 'crop' => $sizeParams['crop']) );
-	    	$srcset .= str_replace( ' ', '%20', $resizedImg ) . ' ' . $width . 'w, ';
-	    	
+			$lastSize = $currentSize;
+			$resizedImg = self::resize_serving_url($baseurl, $currentSize );
+	    	$srcset .= str_replace( ' ', '%20', $resizedImg ) . ' ' . $currentSize['width'] . 'w, ';
 		}
 
 		$attr['srcset'] = rtrim( $srcset, ', ' );
