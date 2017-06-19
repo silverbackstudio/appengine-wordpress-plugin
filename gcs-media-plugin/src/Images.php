@@ -258,8 +258,10 @@ class Images {
 			$sizeParams = ['width' => $metadata['width'], 'height' => $metadata['height'], 'crop' => false];
 		} elseif ( is_array( $size ) ) {
 			$sizeParams = ['width' => $size[0], 'height' => $size[1], 'crop' => false];
-		} else {
+		} elseif ( isset( $sizes[ $size ] ) ) {
 			$sizeParams = $sizes[ $size ];
+		} else {
+			$sizeParams = $sizes[ 'medium' ];
 		}
 
 		foreach($ratios as $key=>$ratio) {
