@@ -264,10 +264,17 @@ class Images {
 			$sizeParams = $sizes[ 'medium' ];
 		}
 
+		$lastSizes = array(0,0);
+
 		foreach($ratios as $key=>$ratio) {
 			list($width, $height) = wp_constrain_dimensions( ceil($sizeParams['width'] * $ratio), ceil($sizeParams['height'] * $ratio), $metadata['width'], $metadata['height'] );
+			if( ($width === $lastSizes[0]) && ($height === $lastSizes[1]) ) {
+				continue;
+			}
+			$lastSizes = array($width, $height);
 			$resizedImg = self::resize_serving_url($baseurl, array('width' =>  $width, 'height' => $height, 'crop' => $sizeParams['crop']) );
 	    	$srcset .= str_replace( ' ', '%20', $resizedImg ) . ' ' . $width . 'w, ';
+	    	
 		}
 
 		$attr['srcset'] = rtrim( $srcset, ', ' );
