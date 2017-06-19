@@ -111,7 +111,7 @@ class Images {
 		}
 
 		$metadata  = wp_get_attachment_metadata($id);
-		list($width, $height) = wp_constrain_dimensions($metadata['width'], $metadata['height'], $sizeParams['width'], $sizeParams['height']);
+		list($width, $height) = wp_constrain_dimensions( $sizeParams['width'], $sizeParams['height'], $metadata['width'], $metadata['height'] );
 
 		$intermediate = !(($width === $metadata['width']) && ($height === $metadata['height']));
 
@@ -263,7 +263,7 @@ class Images {
 		}
 
 		foreach($ratios as $key=>$ratio) {
-			list($width, $height) = wp_constrain_dimensions($metadata['width'], $metadata['height'], ceil($sizeParams['width'] * $ratio), ceil($sizeParams['height'] * $ratio) );
+			list($width, $height) = wp_constrain_dimensions( ceil($sizeParams['width'] * $ratio), ceil($sizeParams['height'] * $ratio), $metadata['width'], $metadata['height'] );
 			$resizedImg = self::resize_serving_url($baseurl, array('width' =>  $width, 'height' => $height, 'crop' => $sizeParams['crop']) );
 	    	$srcset .= str_replace( ' ', '%20', $resizedImg ) . ' ' . $width . 'w, ';
 		}
