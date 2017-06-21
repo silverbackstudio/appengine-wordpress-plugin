@@ -209,8 +209,8 @@ class Images {
 		$core_size = true;
 		
 		if( ! is_array( $size ) && ! isset( $image_sizes[$size] ) ) {
-			$core_size &= $image_sizes[$size]['width'] = intval( get_option( "{$size}_size_w") );
-			$core_size &= $image_sizes[$size]['height'] = intval( get_option( "{$size}_size_h") );
+			$core_size &= (bool) $image_sizes[$size]['width'] = intval( get_option( "{$size}_size_w") );
+			$core_size &= (bool) $image_sizes[$size]['height'] = intval( get_option( "{$size}_size_h") );
 			$image_sizes[$size]['crop']	= boolval( get_option( "{$size}_crop" ) ?: false);
 		}
 
