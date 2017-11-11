@@ -30,12 +30,20 @@ Street, Fifth Floor, Boston, MA 02110-1301, USA.
 
 namespace Google\Cloud\Storage\WordPress;
 
+use Google\Auth\Credentials\GCECredentials;
+
 if(file_exists(__DIR__ . '/vendor/autoload.php')){
-  require_once __DIR__ . '/vendor/autoload.php';    
+  require_once __DIR__ . '/vendor/autoload.php';
 }
 
 if( ! is_appengine() ){
-  $storageClient = new \Google\Cloud\Storage\StorageClient();
+  $config = array();
+
+  if( ! getenv('GOOGLE_APPLICATION_CREDENTIALS') ) {
+    $config['credentialsFetcher'] = new GCECredentials();
+  }
+
+  $storageClient = new \Google\Cloud\Storage\StorageClient($config);
   $storageClient->registerStreamWrapper();
 }
 
