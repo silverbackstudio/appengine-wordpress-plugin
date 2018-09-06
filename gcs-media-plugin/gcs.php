@@ -36,6 +36,38 @@ if(file_exists(__DIR__ . '/vendor/autoload.php')){
   require_once __DIR__ . '/vendor/autoload.php';
 }
 
+$storageClient = new \Google\Cloud\Storage\StorageClient();
+$storageClient->registerStreamWrapper();
+
+define(__NAMESPACE__ . '\\PLUGIN_DIR', __DIR__);
+define(__NAMESPACE__ . '\\PLUGIN_PATH', __FILE__);
+
+/**
+ * Render the options page.
+ */
+function options_page_view()
+{
+    // check user capabilities
+    if (!current_user_can('manage_options')) {
+        return;
+    } ?>
+    <div class="wrap">
+        <h1><?= esc_html(get_admin_page_title()); ?></h1>
+        <form action="options.php" method="POST">
+            <?php
+            // output security fields for the registered setting "gcs_settings"
+            settings_fields('gcs_settings');
+    // output setting sections and their fields (sections are
+    // registered for "gcs", each field is registered to a specific
+    // section)
+    do_settings_sections('gcs');
+    // output save settings button
+    submit_button(__('Save Settings', 'gcs')); ?>
+        </form>
+    </div>
+    <?php
+}
+
 if( ! is_appengine() ){
   $config = array();
 
